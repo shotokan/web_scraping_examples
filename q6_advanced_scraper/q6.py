@@ -33,7 +33,7 @@ class Crawler:
         try:
             with open('{}.{}'.format(file_name, file_type), 'r') as f:
                 html = f.read()
-                # It's necessary to clean up the html (some tags are not closed)
+                # It's necessary to clean up the html (some tags are not closed). It would be better to use html5lib
                 html = self._clean_html(html)
                 only_tables = SoupStrainer("table")
                 self.page_content = Content(file_name)
