@@ -6,8 +6,45 @@ from bs4 import BeautifulSoup as bs
 
 # TODO: PENDING - the website is failing
 class Crawler:
+    """
+    Generator class to parse data from eapps.courts.state.va.us
+    """
 
-    def get_page(self, url, case_id):
+    def __init__(self, id=23800):
+        self.content = Content()
+        self.currentId = id
+        self.MAX = id + 50
+
+    def __iter__(self):
+        return self
+
+    def next(self):
+        """ for python 2.7 """
+        print('next')
+        return self.__next__()
+
+    def __next__(self):
+        """ For python 3"""
+        next_value = self.currentId
+        if next_value >= self.MAX:
+            # When 50 pages are reached all data is saved into a json file.
+            if self._save('q4'):
+                print("SAVED...")
+            raise StopIteration
+        self.currentId += 1
+        url = 'https://eapps.courts.state.va.us/cav-public/caseInquiry/showCasePublicInquiry?caseId={}'
+        soup = self._get_page(url, self.currentId)
+        # Parse data from actual URL
+        data = self._generate_data(soup)
+        return data
+
+    def _get_page(self, url, case_id):
+        """
+        Utility function which open a file and returns a beautifulsoup object.
+        :param url:
+        :param case_id: caseId to query
+        :return:
+        """
         try:
             url = url.format(case_id)
             req = urllib2.Request(url)
@@ -18,19 +55,17 @@ class Crawler:
             print(err)
             raise err
 
-    def save_data(self, data, file_name='default'):
-        with io.open(file_name + '.json', 'w',  encoding='utf-8') as f:
-            f.write(json.dumps(data, ensure_ascii=False))
-
-    def save_data2(self, data, file_name='default'):
-        with open(file_name + '.json', 'wb') as f:
-            json.dump(data, codecs.getwriter('utf-8')(f), ensure_ascii=False)
-
-    def generate_data(self, soup):
+    def _generate_data(self, soup):
+        """
+        Utility function used to get values (appellee, cav, appellant, date).
+        :param soup:
+        :return:
+        """
+        # Get table with appellee data
         grid_text = soup.find(id='listAllPartiesAPL').findAll(class_='gridText')
-        print(grid_text)
         appellant = ""
         for g in grid_text:
+            # There could be several records with the appellant data, so we take the first which is not empty.
             appellant = g.text.replace('\n', '').replace('\r', '').replace('\t', '').strip()
             if appellant != "":
                 break
@@ -38,23 +73,33 @@ class Crawler:
         print(grid_text)
         appellee = ""
         for g in grid_text:
+            # There could be several records with the appellee data, so we take the first which is not empty.
             appellee = g.text.replace('\n', '').replace('\r', '').replace('\t', '').strip()
             if appellee != "":
                 break
+        # Searching for cav
         cav = soup.find(id='caseStyle').text
         cav = cav.replace(' ', '').replace('\t', '')
-        # cav = cav[1].replace(' ', '')
-        print(cav)
         cav = cav.split('#')
         cav = cav[1].strip()
+        # Searching for date
         date = soup.find(id='noticeOfAplDt').attrs['value']
-        content = Content()
-        content.generate_dict(appellee, appellant, cav, date)
-        content.save_data2('q4')
+        # Data is turned into a dictionary
+        data_generated = self.content.generate_dict(appellee, appellant, cav, date)
+        return data_generated
+
+    def _save(self, title='q4'):
+        try:
+            self.content.save_data(title)
+            return True
+        except:
+            return False
 
 
 class Content:
-
+    """
+    Common base class for all tables/pages
+    """
     def __init__(self):
         self.data = []
         self.index = 0
@@ -69,8 +114,9 @@ class Content:
             'date': date
         }
         self.data.append(my_dict)
+        return my_dict
 
-    def save_data2(self, file_name='default'):
+    def save_data(self, file_name='default'):
         if len(self.data) > 0:
             with open(file_name + '.json', 'wb') as f:
                 json.dump(self.data, codecs.getwriter('utf-8')(f), ensure_ascii=False)
@@ -80,7 +126,7 @@ class Content:
 
 if __name__ == '__main__':
     crawler = Crawler()
-    url = 'https://eapps.courts.state.va.us/cav-public/caseInquiry/showCasePublicInquiry?caseId={}'
-    for id in range(23800, 23851):
-        soup = crawler.get_page(url, id)
-        crawler.generate_data(soup)
+
+    # Generator is iterated
+    for data in crawler:
+        print(data)
