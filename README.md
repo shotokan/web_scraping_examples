@@ -1,3 +1,1 @@
 # web scraping test
-
-### Q3 and Q4 are pending...

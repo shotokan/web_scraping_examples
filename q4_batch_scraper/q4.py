@@ -4,7 +4,7 @@ import io
 import codecs
 from bs4 import BeautifulSoup as bs
 
-# TODO: PENDING - the website is failing
+
 class Crawler:
     """
     Generator class to parse data from eapps.courts.state.va.us
